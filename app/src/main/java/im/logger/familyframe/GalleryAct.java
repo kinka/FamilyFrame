@@ -1,8 +1,7 @@
 package im.logger.familyframe;
 
 import android.app.Activity;
-import android.content.pm.ActivityInfo;
-import android.content.res.Configuration;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
@@ -30,7 +29,6 @@ import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
 import com.firebase.client.Query;
 
-import java.io.FileInputStream;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
@@ -47,6 +45,7 @@ public class GalleryAct extends Activity {
     ImageSwitcher imageSwitcher;
     ProgressBar progressBar;
     View contentView;
+    TouchImageView touchImageView;
 
     @Override
     protected void onResume() {
@@ -69,6 +68,15 @@ public class GalleryAct extends Activity {
         progressBar.setVisibility(View.VISIBLE);
 
         contentView = findViewById(R.id.fullscreen_content);
+        touchImageView = (TouchImageView) findViewById(R.id.touchimage);
+        touchImageView.setVisibility(View.GONE);
+        touchImageView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+                touchImageView.setVisibility(View.GONE);
+            }
+        });
 
         findViewById(R.id.dummy_button).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -191,8 +199,9 @@ public class GalleryAct extends Activity {
         loadPhoto();
     }
 
+    public static Bitmap TheBitmap = null;
     void loadPhoto() {
-        // todo 双击放大
+        // todo 双击放大 zoom pinch and 一个微信公众账号
         progressBar.setVisibility(View.VISIBLE);
         new Thread(new Runnable() {
             @Override
@@ -206,6 +215,7 @@ public class GalleryAct extends Activity {
                         bitmap = BitmapFactory.decodeStream(inputStream);
                         Storage.setBitmap(currentPhoto.id, bitmap);
                     }
+                    TheBitmap = bitmap;
                     Message msg = new Message();
                     msg.what = ActHandler.PHOTOLOADED;
                     Bundle data = new Bundle();
@@ -316,6 +326,16 @@ public class GalleryAct extends Activity {
 
         @Override
         public boolean onDown(MotionEvent e) {
+            return true;
+        }
+
+        @Override
+        public boolean onSingleTapUp(MotionEvent e) {
+            if (TheBitmap == null)
+                return false;
+            touchImageView.setImageDrawable(new BitmapDrawable(getResources(), TheBitmap));
+            touchImageView.setVisibility(View.VISIBLE);
+
             return true;
         }
 
