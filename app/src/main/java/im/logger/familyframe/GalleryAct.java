@@ -1,13 +1,9 @@
 package im.logger.familyframe;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
-import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -33,10 +29,9 @@ import com.firebase.client.Query;
 
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class GalleryAct extends Activity {
 
@@ -102,11 +97,22 @@ public class GalleryAct extends Activity {
     }
 
     class ActHandler extends Handler {
+        public final static int PHOTOLOADED = 0x1;
+        public final static int TIMEOUT = 0x2;
+
         @Override
         public void handleMessage(Message msg) {
-            Bitmap bitmap = (Bitmap) msg.getData().get("bitmap");
-            imageSwitcher.setImageDrawable(new BitmapDrawable(getResources(), bitmap));
-            progressBar.setVisibility(View.GONE);
+            switch (msg.what) {
+                case PHOTOLOADED:
+                    Bitmap bitmap = (Bitmap) msg.getData().get("bitmap");
+                    imageSwitcher.setImageDrawable(new BitmapDrawable(getResources(), bitmap));
+                    progressBar.setVisibility(View.GONE);
+                    break;
+                case TIMEOUT:
+                    Toast.makeText(GalleryAct.this, "好像没有了。。。", Toast.LENGTH_SHORT).show();
+                    break;
+            }
+
         }
     }
     Handler handler = new ActHandler();
@@ -118,11 +124,12 @@ public class GalleryAct extends Activity {
         queryRef.addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                Map<String, String> map = (Map<String, String>) dataSnapshot.getValue();
+                Map<String, Object> map = (Map<String, Object>) dataSnapshot.getValue();
                 currentPhoto = new Photo();
-                currentPhoto.url = map.get("url");
-                currentPhoto.time = map.get("time");
-                System.out.println(currentPhoto);
+                currentPhoto.id = dataSnapshot.getKey();
+                currentPhoto.url = (String) map.get("url");
+                currentPhoto.time = (Long) map.get("time");
+                System.out.println("latest" + currentPhoto);
                 photos.add(currentPhoto);
                 currentIndex = photos.size() - 1;
 
@@ -161,7 +168,7 @@ public class GalleryAct extends Activity {
                     // todo 缓存到本地
                     Bitmap bitmap = BitmapFactory.decodeStream(new URL(currentPhoto.url).openConnection().getInputStream());
                     Message msg = new Message();
-                    msg.what = 0x1234;
+                    msg.what = ActHandler.PHOTOLOADED;
                     Bundle data = new Bundle();
                     data.putParcelable("bitmap", bitmap);
                     msg.setData(data);
@@ -212,7 +219,53 @@ public class GalleryAct extends Activity {
         } else {
             // fetch more previous and load photo
             Toast.makeText(this, "正在加载中。。。", Toast.LENGTH_SHORT).show();
-            loadPhoto();
+//            loadPhoto();
+            // 超时定时器
+            final Timer timer = new Timer();
+            timer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    handler.sendEmptyMessage(ActHandler.TIMEOUT);
+                }
+            }, 3000);
+
+            Query queryRef = ref.orderByChild("time").endAt(currentPhoto.time - 1).limitToLast(1); // 这里是假设了同一秒内没有相同的
+            queryRef.addChildEventListener(new ChildEventListener() {
+                @Override
+                public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                    timer.cancel();
+
+                    Map<String, Object> map = (Map<String, Object>) dataSnapshot.getValue();
+                    currentPhoto = new Photo();
+                    currentPhoto.id = dataSnapshot.getKey();
+                    currentPhoto.url = (String) map.get("url");
+                    currentPhoto.time = (Long) map.get("time");
+                    System.out.println("prev " + currentPhoto);
+                    photos.add(0, currentPhoto);
+                    currentIndex = 0;
+                    loadPhoto();
+                }
+
+                @Override
+                public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+                }
+
+                @Override
+                public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+                }
+
+                @Override
+                public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+                }
+
+                @Override
+                public void onCancelled(FirebaseError firebaseError) {
+
+                }
+            });
         }
     }
 
