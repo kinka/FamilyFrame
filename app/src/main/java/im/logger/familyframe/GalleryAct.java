@@ -6,6 +6,7 @@ import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
+import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -29,6 +30,8 @@ import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
 import com.firebase.client.Query;
 
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Map;
@@ -43,6 +46,14 @@ public class GalleryAct extends Activity {
     ArrayList<Photo> photos = new ArrayList<>();
     ImageSwitcher imageSwitcher;
     ProgressBar progressBar;
+    View contentView;
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        contentView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,10 +68,7 @@ public class GalleryAct extends Activity {
 
         progressBar.setVisibility(View.VISIBLE);
 
-        final View contentView = findViewById(R.id.fullscreen_content);
-
-        contentView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
+        contentView = findViewById(R.id.fullscreen_content);
 
         findViewById(R.id.dummy_button).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -124,6 +132,15 @@ public class GalleryAct extends Activity {
     void initGallery() {
         ref = new Firebase("https://fam-ily.firebaseio.com/gallery");
 
+        // 判断网络是否可用
+        ConnectivityManager cm = (ConnectivityManager) this.getSystemService(CONNECTIVITY_SERVICE);
+        if (cm != null) {
+            if (cm.getActiveNetworkInfo() == null || !cm.getActiveNetworkInfo().isAvailable()) {
+                loadOffline();
+                return;
+            }
+        }
+
         Query queryRef = ref.orderByChild("time").limitToLast(1);
         queryRef.addChildEventListener(new ChildEventListener() {
             @Override
@@ -162,6 +179,18 @@ public class GalleryAct extends Activity {
         });
     }
 
+    void loadOffline() {
+        Toast.makeText(this, "离线状态。。。", Toast.LENGTH_SHORT).show();
+        progressBar.setVisibility(View.GONE);
+        String[] ids = Storage.listIdList();
+        for (String id:ids) {
+            currentPhoto = new Photo();
+            currentPhoto.id = id;
+            photos.add(currentPhoto);
+        }
+        loadPhoto();
+    }
+
     void loadPhoto() {
         // todo 双击放大
         progressBar.setVisibility(View.VISIBLE);
@@ -169,11 +198,12 @@ public class GalleryAct extends Activity {
             @Override
             public void run() {
                 try {
-                    Bitmap bitmap = null;
+                    Bitmap bitmap;
                     if (Storage.exists(currentPhoto.id)) {
                         bitmap = Storage.getBitmap(currentPhoto.id);
                     } else {
-                        bitmap = BitmapFactory.decodeStream(new URL(currentPhoto.url).openConnection().getInputStream());
+                        InputStream inputStream = new URL(currentPhoto.url).openConnection().getInputStream();
+                        bitmap = BitmapFactory.decodeStream(inputStream);
                         Storage.setBitmap(currentPhoto.id, bitmap);
                     }
                     Message msg = new Message();

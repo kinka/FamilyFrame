@@ -31,12 +31,12 @@ public class Storage {
     public static void setBitmap(String id, Bitmap bitmap) {
         FileOutputStream out = null;
         try {
-            System.out.println("id file " + rootPath + id);
             File file = new File(rootPath + id);
             if (!file.exists())
                 file.createNewFile();
             out = new FileOutputStream(file);
             bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out);
+            System.out.println("id file " + rootPath + id + " size: " + (file.length() / 1024) + "kB");
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -56,7 +56,18 @@ public class Storage {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        System.out.println("get bitmap " + (bitmap != null));
+
         return bitmap;
+    }
+
+    public static String[] listIdList() {
+        File dir = new File(rootPath);
+        File[] files = dir.listFiles();
+        String[] idList = new String[files.length];
+        for (int i=0; i<files.length; i++) {
+            idList[i] = files[i].getName();
+            System.out.println(idList[i]);
+        }
+        return idList;
     }
 }
