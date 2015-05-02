@@ -1,6 +1,8 @@
 package im.logger.familyframe;
 
 import android.app.Activity;
+import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
@@ -93,6 +95,8 @@ public class GalleryAct extends Activity {
         };
         imageSwitcher.setOnTouchListener(gestureListener);
 
+        Storage.init(this);
+
         initGallery();
     }
 
@@ -129,7 +133,7 @@ public class GalleryAct extends Activity {
                 currentPhoto.id = dataSnapshot.getKey();
                 currentPhoto.url = (String) map.get("url");
                 currentPhoto.time = (Long) map.get("time");
-                System.out.println("latest" + currentPhoto);
+                System.out.println("latest " + currentPhoto);
                 photos.add(currentPhoto);
                 currentIndex = photos.size() - 1;
 
@@ -165,8 +169,13 @@ public class GalleryAct extends Activity {
             @Override
             public void run() {
                 try {
-                    // todo 缓存到本地
-                    Bitmap bitmap = BitmapFactory.decodeStream(new URL(currentPhoto.url).openConnection().getInputStream());
+                    Bitmap bitmap = null;
+                    if (Storage.exists(currentPhoto.id)) {
+                        bitmap = Storage.getBitmap(currentPhoto.id);
+                    } else {
+                        bitmap = BitmapFactory.decodeStream(new URL(currentPhoto.url).openConnection().getInputStream());
+                        Storage.setBitmap(currentPhoto.id, bitmap);
+                    }
                     Message msg = new Message();
                     msg.what = ActHandler.PHOTOLOADED;
                     Bundle data = new Bundle();
