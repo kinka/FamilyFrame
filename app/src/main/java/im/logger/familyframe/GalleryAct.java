@@ -73,7 +73,6 @@ public class GalleryAct extends Activity {
         touchImageView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-
                 touchImageView.setVisibility(View.GONE);
             }
         });
@@ -201,7 +200,6 @@ public class GalleryAct extends Activity {
 
     public static Bitmap TheBitmap = null;
     void loadPhoto() {
-        // todo 双击放大 zoom pinch and 一个微信公众账号
         progressBar.setVisibility(View.VISIBLE);
         new Thread(new Runnable() {
             @Override
