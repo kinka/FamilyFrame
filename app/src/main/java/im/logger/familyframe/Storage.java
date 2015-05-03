@@ -60,6 +60,13 @@ public class Storage {
         return bitmap;
     }
 
+    public static boolean removeBitmap(String id) {
+        File file = new File(rootPath + id);
+        if (!file.exists())
+            return true;
+        return file.delete();
+    }
+
     public static String[] listIdList() {
         File dir = new File(rootPath);
         File[] files = dir.listFiles();

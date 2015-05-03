@@ -1,6 +1,8 @@
 package im.logger.familyframe;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -80,7 +82,7 @@ public class GalleryAct extends Activity {
         findViewById(R.id.dummy_button).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                pushGallery();
+//                pushGallery();
             }
         });
 
@@ -148,6 +150,52 @@ public class GalleryAct extends Activity {
             }
         }
 
+        // 不同的查询要添加不同的的事件监听器，以免混乱呀
+        ref.addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+                String id = dataSnapshot.getKey();
+
+                for (int i=0, len = photos.size(); i<len; i++) {
+                    if (photos.get(i).id.equals(id)) {
+                        Storage.removeBitmap(id);
+                        photos.remove(i);
+                        if (!currentPhoto.id.equals(id))
+                            break;
+                        len = photos.size();
+                        if (currentIndex == len) {
+                            prev();
+                        } else {
+                            currentIndex--; // 删除一个元素后，currentIndex 其实刚刚好，这里要--是因为next()里会++
+                            next();
+                        }
+                        break;
+                    }
+                }
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onCancelled(FirebaseError firebaseError) {
+
+            }
+        });
+
+        // 当连续两次childAdd的时候，就会出现一次childRemove，这里的remove其实是因为查询结果被更新，而并非后台有删除
         Query queryRef = ref.orderByChild("time").limitToLast(1);
         queryRef.addChildEventListener(new ChildEventListener() {
             @Override
@@ -242,7 +290,6 @@ public class GalleryAct extends Activity {
         if (currentIndex < photos.size() - 1) {
             currentIndex++;
             currentPhoto = photos.get(currentIndex);
-            // load photo
             loadPhoto();
         } else {
             Toast.makeText(this, "没有更多了。。。", Toast.LENGTH_SHORT).show();
@@ -261,7 +308,6 @@ public class GalleryAct extends Activity {
         if (currentIndex > 0) {
             currentIndex--;
             currentPhoto = photos.get(currentIndex);
-            // load photo
             loadPhoto();
         } else {
             // fetch more previous and load photo
@@ -316,10 +362,32 @@ public class GalleryAct extends Activity {
         }
     }
 
+    void removePhoto() {
+        ref.child(currentPhoto.id).removeValue();
+    }
+
     class MyGestureDetector extends GestureDetector.SimpleOnGestureListener {
         @Override
         public boolean onSingleTapConfirmed(MotionEvent e) {
             return super.onSingleTapConfirmed(e);
+        }
+
+        @Override
+        public void onLongPress(MotionEvent e) {
+            new AlertDialog.Builder(GalleryAct.this).setCancelable(false)
+                    .setPositiveButton("删除", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            removePhoto();
+                        }
+                    })
+                    .setNegativeButton("取消", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+
+                        }
+                    })
+                    .setTitle("删除该照片吗？").show();
         }
 
         @Override
